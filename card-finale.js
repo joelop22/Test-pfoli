@@ -280,23 +280,14 @@
         });
     }
 
-    // ---- Page-level darkening / nav fade / cursor-glow shrink -------------------
+    // ---- Nav fade / cursor-glow shrink as the section comes into view -------
     function setupPageDarkening(sectionEl) {
-        const overlay = document.createElement("div");
-        overlay.id = "page-darken-overlay";
-        overlay.style.cssText = `
-            position: fixed; inset: 0; background: #000; opacity: 0;
-            pointer-events: none; z-index: 40; transition: opacity 0.6s ease;
-        `;
-        document.body.appendChild(overlay);
-
         const nav = document.querySelector("nav");
         const glowCursor = document.getElementById("glow-cursor");
 
         const observer = new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
                 const ratio = entry.intersectionRatio;
-                overlay.style.opacity = String(Math.min(ratio * 1.4, 0.85));
 
                 if (entry.isIntersecting && ratio > 0.35) {
                     sectionEl.classList.add("in-view");
@@ -394,3 +385,4 @@
         init();
     }
 })();
+       
