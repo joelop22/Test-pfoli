@@ -1,0 +1,463 @@
+/* ==========================================================================
+   CARD FINALE — Cinematic closing section with interactive 3D business card
+   Self-contained module. Does not touch any existing selectors.
+   ========================================================================== */
+
+:root {
+  --card-w: 380px;
+  --card-h: 230px;
+  --card-radius: 18px;
+}
+
+/* Section wrapper -------------------------------------------------------- */
+.card-finale {
+  position: relative;
+  min-height: 100vh;
+  padding: 0 !important;      /* override generic `section` padding */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #000;
+  isolation: isolate;
+}
+
+/* Matte black noise backdrop -------------------------------------------- */
+.finale-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #050505;
+}
+
+.finale-bg::before {
+  /* subtle film-grain noise, generated with layered gradients (no image asset needed) */
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 3px 3px, 5px 5px;
+  background-position: 0 0, 2px 2px;
+  animation: grainShift 1.2s steps(4) infinite;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@keyframes grainShift {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-1%, 1%); }
+  50%  { transform: translate(1%, -1%); }
+  75%  { transform: translate(-1%, -1%); }
+  100% { transform: translate(0, 0); }
+}
+
+.finale-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%,
+      transparent 0%,
+      transparent 35%,
+      rgba(0, 0, 0, 0.55) 80%,
+      rgba(0, 0, 0, 0.92) 100%);
+}
+
+/* Soft spotlight falling from above -------------------------------------- */
+.finale-spotlight {
+  position: absolute;
+  top: -20%;
+  left: 50%;
+  width: 140%;
+  height: 90%;
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 40% 60% at 50% 0%,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.06) 35%,
+      transparent 70%);
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.card-finale.in-view .finale-spotlight {
+  opacity: 1;
+}
+
+/* Floating dust particles ------------------------------------------------ */
+.dust-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.dust-particle {
+  position: absolute;
+  bottom: -5%;
+  width: var(--size, 3px);
+  height: var(--size, 3px);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, var(--opacity, 0.4));
+  filter: blur(0.5px);
+  animation: dustFloat var(--duration, 14s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes dustFloat {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  10% { opacity: var(--opacity, 0.4); }
+  90% { opacity: var(--opacity, 0.4); }
+  100% {
+    transform: translate3d(var(--drift, 20px), -115vh, 0);
+    opacity: 0;
+  }
+}
+
+/* Card scene / 3D stage --------------------------------------------------- */
+.card-scene {
+  position: relative;
+  z-index: 3;
+  perspective: 1600px;
+  width: var(--card-w);
+  height: var(--card-h);
+  margin-bottom: 3rem;
+}
+
+.card-3d {
+  width: 100%;
+  height: 100%;
+  transform: translateY(120%);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Outer wrapper handles mouse/gyro tilt */
+.card-tilt {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* Inner wrapper handles the 180° flip */
+.card-flip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: pointer;
+}
+
+.card-flip.is-flipped {
+  transform: rotateY(180deg);
+}
+
+/* Shared face styling — this is what gives the card its "thickness" */
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--card-radius);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem 2.25rem;
+  background: linear-gradient(155deg, #1c1c1c 0%, #0c0c0c 55%, #050505 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 2px 0 0 rgba(255, 255, 255, 0.06) inset,
+    0 30px 60px -20px rgba(0, 0, 0, 0.8),
+    0 10px 20px -8px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+/* Faux reflective sheen that tracks the mouse via CSS variables set in JS */
+.card-face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--sheen-x, 50%) var(--sheen-y, 20%),
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.04) 30%,
+      transparent 60%);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+/* Hairline edge highlight for a believable "thickness" cue */
+.card-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--card-radius);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+}
+
+/* Front face content ------------------------------------------------------ */
+.card-brand {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 4px;
+  color: var(--color-text-muted);
+  margin-bottom: auto;
+}
+
+.card-name {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.card-title {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
+.card-mark {
+  position: absolute;
+  top: 2rem;
+  right: 2.25rem;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--color-text-muted);
+}
+
+/* Back face content --------------------------------------------------------*/
+.card-back-inner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  height: 100%;
+}
+
+.card-qr {
+  flex-shrink: 0;
+  width: 84px;
+  height: 84px;
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-qr img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.card-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-detail-row i {
+  width: 14px;
+  color: var(--color-text);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.card-detail-row a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-detail-row a:hover {
+  color: var(--color-text);
+}
+
+/* Save Contact button ------------------------------------------------------*/
+.save-contact-btn {
+  position: relative;
+  z-index: 3;
+  padding: 0.9rem 2.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s ease, transform 0.6s ease, box-shadow 0.4s ease, border-color 0.4s ease, background 0.4s ease;
+}
+
+.card-finale.card-visible .save-contact-btn {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.save-contact-btn:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.save-contact-btn.is-glowing {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 0 40px 4px rgba(255, 255, 255, 0.35);
+}
+
+.save-contact-btn .btn-success {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  color: #0a0a0a;
+}
+
+.save-contact-btn.is-saved {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #0a0a0a;
+}
+
+.save-contact-btn.is-saved .btn-label {
+  display: none;
+}
+
+.save-contact-btn.is-saved .btn-success {
+  display: inline-flex;
+}
+
+/* Outro: thank-you copy fading into the logo -------------------------------*/
+.finale-outro {
+  position: absolute;
+  z-index: 3;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+}
+
+.finale-outro h2 {
+  font-size: clamp(1.6rem, 4vw, 2.6rem);
+  letter-spacing: 3px;
+  margin-bottom: 0.75rem;
+  color: var(--color-text);
+}
+
+.finale-outro p {
+  color: var(--color-text-muted);
+  font-size: 1.05rem;
+  margin-bottom: 2.5rem;
+}
+
+.finale-logo {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 6px;
+  color: var(--color-text-muted);
+  opacity: 0;
+}
+
+/* Hint text under the card, shown before first interaction ----------------*/
+.card-hint {
+  position: relative;
+  z-index: 3;
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition: opacity 0.6s ease 0.4s;
+}
+
+.card-finale.card-visible .card-hint {
+  opacity: 0.6;
+}
+
+.card-finale.card-flipped-once .card-hint {
+  opacity: 0;
+}
+
+/* Shrinks the existing .glow-cursor into a tight spotlight while the
+   finale section is in view (class toggled from card-finale.js) --------- */
+.glow-cursor.glow-shrink {
+  width: 140px;
+  height: 140px;
+  opacity: 0.35;
+  background: radial-gradient(circle at center, #ffffff 0%, transparent 70%);
+  mix-blend-mode: soft-light;
+  transition: width 0.8s ease, height 0.8s ease, opacity 0.8s ease, background 0.8s ease;
+}
+
+/* Responsive ---------------------------------------------------------------*/
+@media (max-width: 560px) {
+  :root {
+    --card-w: 300px;
+    --card-h: 185px;
+  }
+
+  .card-face {
+    padding: 1.4rem 1.5rem;
+  }
+
+  .card-name { font-size: 1.15rem; }
+  .card-qr { width: 64px; height: 64px; }
+  .card-detail-row { font-size: 0.7rem; }
+}
+
+/* Respect reduced motion ----------------------------------------------------*/
+@media (prefers-reduced-motion: reduce) {
+  .card-3d,
+  .card-tilt,
+  .card-flip,
+  .save-contact-btn,
+  .finale-outro,
+  .finale-logo,
+  .finale-spotlight {
+    transition-duration: 0.3s !important;
+    animation: none !important;
+  }
+
+  .dust-particle {
+    display: none;
+  }
+}
